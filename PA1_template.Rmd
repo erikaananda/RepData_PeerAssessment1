@@ -1,25 +1,144 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "erikaananda"
+date: "June 13, 2015"
+output: html_document 
 ---
+## The following is an analysis of fitness metrics captured by activity monitoring devices 
+
+Read the activity.csv file
+
+```{r}
+library(lubridate)
+library(dplyr)
+library(lattice)
+#setwd("./Documents/RData/data/")
+DSActivity <- read.csv("activity.csv")
+```
+ 
+Process the Data Frame to recognize dates and remove NAs.
+
+```{r}
+DSActivity <- mutate (DSActivity, date = ymd(DSActivity$date))
+CompleteActivity <- DSActivity[complete.cases(DSActivity), ]
+```
+#Totals By Day
+Get a summary of steps per date and plot a histogram
+```{r}
+par(mfrow=c(1,1))
+GDateActivity <- group_by(CompleteActivity, date)
+StepsPerDate <- 
+  summarize(GDateActivity, sum(steps), mean(steps), median(steps))
+names(StepsPerDate) = 
+  c("date", "totalSteps", "meanSteps", "medianSteps")
+hist(x= StepsPerDate$totalSteps, main = "Histogram of Total Steps", xlab = "Total Steps")
+```
+
+Take a look at the mean and median of the total number of steps taken per day
+```{r}
+
+plot(StepsPerDate$date, StepsPerDate$meanSteps, 
+     col = "red", type = "l", main = "Average Steps Per Day", 
+     xlab = "Day", ylab= "Average Steps")
+
+```
+
+Our median steps per day comes to 0
+```{r}
+unique(StepsPerDate$medianSteps)
+```
+#Daily Patterns
+Plot the Average Steps per Interval
+```{r}
+GIntActivity <- group_by(CompleteActivity, interval)
+StepsPerInterval <- 
+  summarize(GIntActivity, sum(steps), mean(steps), median(steps))
+
+names(StepsPerInterval) = 
+  c("interval", "totalSteps", "meanSteps", "medianSteps")
+  
+plot(as.integer(StepsPerInterval$interval), StepsPerInterval$meanSteps, 
+     col = "red", type = "l", main = "Average Steps Per Interval", 
+     xlab = "Interval", ylab= "Average Steps")
+```
+
+Which interval has the most steps?
+```{r}
+max(StepsPerInterval$totalSteps)
+```
+#Missing Values
+How many missing values are there?
+```{r}
+sum(!complete.cases(DSActivity))
+```
+Fill missing values in with the mean for that Interval
+```{r}
+ImputeActivity <- DSActivity
+
+for (i in 1:nrow(ImputeActivity)) {
+  if (is.na(ImputeActivity[i, 1])) {
+    intervalMean <- StepsPerInterval[StepsPerInterval$interval == ImputeActivity[i, 3], 3]
+    ImputeActivity[i, 1] <- intervalMean
+    }
+}
+
+```
+Create a new histogram with imputed data
+```{r}
+IGDateActivity <- group_by(ImputeActivity, date)
+IStepsPerDate <- 
+  summarize(IGDateActivity, sum(steps), mean(steps), median(steps))
+names(IStepsPerDate) = 
+  c("date", "totalSteps", "meanSteps", "medianSteps")
+hist(x= IStepsPerDate$totalSteps, main = "Histogram of Total Steps with Imputed Values", xlab = "Total Steps")
+```
+Look above to compare with the data where NAs are removed - 
+the Y axis is much shorter
+
+Now, for the mean and median and compare with the original. 
+The median is seriously affected.
+```{r}
+par(mfrow=c(2,2))
+plot(as.integer(StepsPerDate$date), StepsPerDate$meanSteps, 
+     col = "red", type = "l", main = "Average Steps Per Day", 
+     xlab = "Day", ylab= "Average Steps")
+
+plot(as.integer(StepsPerDate$date), StepsPerDate$medianSteps, 
+     col = "red", type = "l", main = "Median Steps Per Date", 
+     xlab = "Day", ylab= "Average Steps")
+plot(as.integer(IStepsPerDate$date), IStepsPerDate$meanSteps, 
+     col = "red", type = "l", main = "Imputed Average Steps Per Date", 
+     xlab = "Day", ylab= "Average Steps")
+
+plot(as.integer(IStepsPerDate$date), IStepsPerDate$medianSteps, 
+     col = "red", type = "l", main = "Imputed Median Steps Per Date", 
+     xlab = "Day", ylab= "Average Steps")
+```
+
+#Weekdays Vs Weekends
+```{r}
+IWeekday <- weekdays(ImputeActivity$date)
+for (i in 1:length(IWeekday)){
+  if (IWeekday[i] == "Saturday" | IWeekday[i] ==  "Sunday"){
+    IWeekday[i] <- "weekend"
+  }
+  else IWeekday[i] <- "weekday"
+}
+ImputeActivity <- mutate(ImputeActivity, dayType = IWeekday)
+
+IGIntActivity <- group_by(ImputeActivity, interval, dayType)
+StepsPerInterval <- 
+  summarize(IGIntActivity, sum(steps), mean(steps), median(steps))
 
 
-## Loading and preprocessing the data
+names(StepsPerInterval) = 
+  c("interval", "dayType", "totalSteps", "meanSteps", "medianSteps")
+  
+
+xyplot(meanSteps ~ interval | dayType, data = StepsPerInterval,
+       layout = c(1, 2), ylab = "Average Number of Steps", 
+       type = "l") ## Plot with 2 panels
 
 
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```
